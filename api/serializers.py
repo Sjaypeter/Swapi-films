@@ -51,4 +51,5 @@ class FilmDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'episode_id', 'opening_crawl',
             'director', 'producer', 'release_date',
-            'comment_count', 'comments']
+            'comment_count', 'comments'
+        ]

@@ -28,6 +28,7 @@ class Film(models.Model):
 
 
 class Comment(models.Model):
+    # model for storing user comments on films.
 
     film = models.ForeignKey(Film,on_delete=models.CASCADE,related_name='comments')
     text = models.TextField(max_length=500,validators=[MaxLengthValidator(500)],help_text="Comment text (max 500 characters)")

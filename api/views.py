@@ -1,6 +1,4 @@
 from django.shortcuts import render
-
-# Create your views here.
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,15 +6,8 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Count
 from django.core.cache import cache
 from .models import Film, Comment
-from .serializers import (
-    FilmListSerializer,
-    FilmDetailSerializer,
-    CommentSerializer,
-    CommentCreateSerializer
-)
-import logging
-
-logger = logging.getLogger(__name__)
+from .serializers import (FilmListSerializer,FilmDetailSerializer,CommentSerializer,CommentCreateSerializer)
+from .services import SwapiService
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -95,52 +86,52 @@ class FilmViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(
                 {"error": "Failed to retrieve comments"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+                )
 
     @action(detail=True, methods=['post'], url_path='add-comment')
-        def add_comment(self, request, pk=None):
-            """
-            Add a comment to a specific film.
-            """
-            try:
-                film = self.get_object()
-                serializer = CommentCreateSerializer(data=request.data)
+    def add_comment(self, request, pk=None):
+        """
+        Add a comment to a specific film.
+        """
+        try:
+            film = self.get_object()
+            serializer = CommentCreateSerializer(data=request.data)
+            
+            if serializer.is_valid():
+                # Get client IP
+                x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+                if x_forwarded_for:
+                    ip = x_forwarded_for.split(',')[0]
+                else:
+                    ip = request.META.get('REMOTE_ADDR')
                 
-                if serializer.is_valid():
-                    # Get client IP
-                    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-                    if x_forwarded_for:
-                        ip = x_forwarded_for.split(',')[0]
-                    else:
-                        ip = request.META.get('REMOTE_ADDR')
-                    
-                    comment = serializer.save(
-                        film=film,
-                        author_ip=ip
-                    )
-                    
-                    response_serializer = CommentSerializer(comment)
-                    return Response(
-                        response_serializer.data,
-                        status=status.HTTP_201_CREATED
-                    )
+                comment = serializer.save(
+                    film=film,
+                    author_ip=ip
+                )
                 
+                response_serializer = CommentSerializer(comment)
                 return Response(
-                    serializer.errors,
-                    status=status.HTTP_400_BAD_REQUEST
+                    response_serializer.data,
+                    status=status.HTTP_201_CREATED
                 )
             
-            except Film.DoesNotExist:
-                return Response(
-                    {"error": "Film not found"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            except Exception as e:
-                logger.error(f"Error adding comment: {str(e)}")
-                return Response(
-                    {"error": "Failed to add comment"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        except Film.DoesNotExist:
+            return Response(
+                {"error": "Film not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error adding comment: {str(e)}")
+            return Response(
+                {"error": "Failed to add comment"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class CommentViewSet(viewsets.ReadOnlyModelViewSet):
    
